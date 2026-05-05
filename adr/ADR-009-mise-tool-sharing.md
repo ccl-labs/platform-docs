@@ -52,8 +52,7 @@ DR 時にシンボリックリンク作成 `ln -sf ~/platform-infra/.mise.toml ~
 **問題点:** ArgoCD が管理するリポジトリ（platform-gitops / platform-charts）では、
 リポジトリ外を指すシンボリックリンクに対して
 `repository contains out-of-bounds symlinks` エラーが発生し使用できない。
-また `mise extends` は使用中のバージョンで未対応のため、
-設定ファイルレベルでの継承も不可。
+またmiseには` extends`のような機能もなく、設定ファイルレベルでの継承も不可。
 
 ### Option 4: GitHub Actions でツール定義を他リポジトリに配布する
 
