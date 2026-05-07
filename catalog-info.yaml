@@ -5,6 +5,7 @@ metadata:
   description: ADR・Runbook・作業ログなどプラットフォーム全体のドキュメント
   annotations:
     github.com/project-slug: ccl-labs/platform-docs
+    backstage.io/techdocs-ref: dir:.
   tags:
     - documentation
     - adr

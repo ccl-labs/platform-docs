@@ -1,0 +1,55 @@
+site_name: Platform Docs
+site_description: Platform Engineering ドキュメント - ADR・Runbook・作業ログ
+docs_dir: .
+nav:
+  - Overview: README.md
+  - ADR:
+    - ADR-001 GitOpsエンジン: adr/ADR-001-gitops-engine.md
+    - ADR-002 Helm Library Chart: adr/ADR-002-helm-library-chart.md
+    - ADR-003 Secrets管理: adr/ADR-003-secrets-management.md
+    - ADR-004 PostgreSQL Operator: adr/ADR-004-postgresql-operator.md
+    - ADR-005 Crossplane: adr/ADR-005-crossplane.md
+    - ADR-006 Cilium: adr/ADR-006-cilium.md
+    - ADR-007 Local to Cloud: adr/ADR-007-local-to-cloud.md
+    - ADR-008 Bootstrap: adr/ADR-008-bootstrap.md
+    - ADR-009 Mise Tool Sharing: adr/ADR-009-mise-tool-sharing.md
+  - Runbook:
+    - Runbook-001 CNPG WAL Error: runbook/Runbook-001-cnpg-wal-error.md
+    - Runbook-002 CoreDNS: runbook/Runbook-002-coredns.md
+  - Worklog:
+    - Phase 0 (Foundation): worklog/phase00_00_log.md
+    - Phase 0.5 (mise): worklog/phase00_05_log.md
+    - Phase 1 (k3d): worklog/phase01_log.md
+    - Phase 2 (GitOps): worklog/phase02_log.md
+    - Phase 3 (Connectivity): worklog/phase03_00_log.md
+    - Phase 3.5: worklog/phase03_05_log.md
+    - Phase 4 (Observability): worklog/phase04_log.md
+    - Phase 5 (Abstraction): worklog/phase05_log.md
+    - Phase 6 (Golden Path): worklog/phase06_log.md
+    - Phase 7 (Kyverno): worklog/phase07_00_log.md
+    - Phase 7.5: worklog/phase07_05_log.md
+    - Phase 8 (Data): worklog/phase08_00_log.md
+    - Phase 8.5: worklog/phase08_05_log.md
+    - Phase 9-1 (Resilience): worklog/phase09-1_log.md
+    - Phase 9-2: worklog/phase09-2_log.md
+    - Phase 9-3: worklog/phase09-3_log.md
+    - Phase 10 (DR/SOPS): worklog/phase10_00_log.md
+    - Phase 10.5: worklog/phase10_05_log.md
+    - Phase 11-1 (Hardening): worklog/phase11_1_log.md
+    - Phase 11-2-4: worklog/phase11_2-4_log.md
+    - Phase 11-5: worklog/phase11_5_log.md
+    - Phase 11-6-8: worklog/phase11_6-8_log.md
+    - Phase 12-1-3 (IDP): worklog/phase12_1-3_log.md
+    - Phase 12-4: worklog/phase12_4_log.md
+    - Phase 12-5-7: worklog/phase12_5-7_log.md
+    - Phase 12-A1: worklog/phase12_A1_log.md
+    - Phase 12-A2: worklog/phase12_A2_log.md
+    - Phase 12-A3: worklog/phase12_A3_log.md
+    - Phase 12-A4: worklog/phase12_A4_log.md
+    - Phase 12-A5: worklog/phase12_A5_log.md
+    - Phase 12-A6: worklog/phase12_A6_log.md
+    - Phase 12-A7: worklog/phase12_A7_log.md
+    - Phase 12-A8: worklog/phase12_A8_log.md
+
+plugins:
+  - techdocs-core
