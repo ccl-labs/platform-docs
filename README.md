@@ -58,8 +58,7 @@ bootstrap
 
 | No. | タイトル | 関連コンポーネント |
 |---|---|---|
-| [Runbook-001](docs/runbook/Runbook-001-cnpg-wal-error.md) | CNPG 旧 primary WAL エラー対処 | CloudNativePG |
-| [Runbook-002](docs/runbook/Runbook-002-coredns.md) | CoreDNS への host.k3d.internal 登録 | k3d / CoreDNS |
+| [Runbook-001](docs/runbook/Runbook-001-secrets-management.md) | シークレット追加・更新手順 | SOPS / ESO / ArgoCD |
 
 ---
 
