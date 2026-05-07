@@ -1,4 +1,4 @@
-# ADR-008: bootstrap 順序制御の設計（App-of-Apps 分割と Makefile による明示的制御）
+# ADR-002: bootstrap 順序制御の設計（App-of-Apps 分割と Makefile による明示的制御）
 
 ## Context
 

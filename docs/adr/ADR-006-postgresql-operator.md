@@ -1,4 +1,4 @@
-# ADR-004: PostgreSQL Operatorの選択
+# ADR-006: PostgreSQL Operatorの選択
 
 ## Context
 

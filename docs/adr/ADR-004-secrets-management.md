@@ -1,4 +1,4 @@
-# ADR-003: Secret管理戦略の選択
+# ADR-004: Secret管理戦略の選択
 
 ## Context
 

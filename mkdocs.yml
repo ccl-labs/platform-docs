@@ -4,14 +4,12 @@ nav:
   - Overview: index.md
   - ADR:
     - ADR-001 GitOpsエンジン: adr/ADR-001-gitops-engine.md
-    - ADR-002 Helm Library Chart: adr/ADR-002-helm-library-chart.md
-    - ADR-003 Secrets管理: adr/ADR-003-secrets-management.md
-    - ADR-004 PostgreSQL Operator: adr/ADR-004-postgresql-operator.md
+    - ADR-002 Bootstrap順序制御: adr/ADR-002-bootstrap.md
+    - ADR-003 Helm Library Chart: adr/ADR-003-helm-library-chart.md
+    - ADR-004 Secrets管理: adr/ADR-004-secrets-management.md
     - ADR-005 Crossplane: adr/ADR-005-crossplane.md
-    - ADR-006 Cilium: adr/ADR-006-cilium.md
-    - ADR-007 Local to Cloud: adr/ADR-007-local-to-cloud.md
-    - ADR-008 Bootstrap: adr/ADR-008-bootstrap.md
-    - ADR-009 Mise Tool Sharing: adr/ADR-009-mise-tool-sharing.md
+    - ADR-006 PostgreSQL Operator: adr/ADR-006-postgresql-operator.md
+    - ADR-007 Mise Tool Sharing: adr/ADR-007-mise-tool-sharing.md
   - Runbook:
     - Runbook-001 CNPG WAL Error: runbook/Runbook-001-cnpg-wal-error.md
     - Runbook-002 CoreDNS: runbook/Runbook-002-coredns.md

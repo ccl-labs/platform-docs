@@ -1,4 +1,4 @@
-# ADR-002: Kubernetesマニフェスト抽象化方法の選択
+# ADR-003: Kubernetesマニフェスト抽象化方法の選択
 
 ## Context
 

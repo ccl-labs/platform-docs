@@ -1,4 +1,4 @@
-# ADR-009: mise ツール定義の共有戦略（platform-infra を source of truth とする管理方針）
+# ADR-007: mise ツール定義の共有戦略（platform-infra を source of truth とする管理方針）
 
 ## Context
 
