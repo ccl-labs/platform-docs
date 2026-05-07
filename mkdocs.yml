@@ -11,6 +11,8 @@ nav:
     - ADR-006 PostgreSQL Operator: adr/ADR-006-postgresql-operator.md
     - ADR-007 Mise Tool Sharing: adr/ADR-007-mise-tool-sharing.md
 
+  - Runbook:
+    - Runbook-001 シークレット追加・更新: runbook/Runbook-001-secrets-management.md
   - Worklog:
     - Phase 0 (Foundation): worklog/phase00_00_log.md
     - Phase 0.5 (mise): worklog/phase00_05_log.md
