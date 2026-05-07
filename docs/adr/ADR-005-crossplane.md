@@ -1,5 +1,8 @@
 # ADR-005: インフラリソース管理の責務分離（Crossplane vs Terraform）
 
+> **[作成中]** Crossplane の本格検証はクラウド移行（Phase 13 EKS）以降を予定しており、
+> provider-aws での検証完了後にこの ADR を改訂する。
+
 ## Context
 
 Platform Engineering の文脈では、インフラリソース（DB・ネットワーク・ストレージなど）の

@@ -1,5 +1,7 @@
 # ADR-007: mise ツール定義の共有戦略（platform-infra を source of truth とする管理方針）
 
+> **[作成中]** aqua（aquaproj）への移行を検討しており、採用が確定した時点でこの ADR を改訂する。
+
 ## Context
 
 kubectl / helm / k3d / argocd / sops など、開発・運用に必要なツール群のバージョン管理に
