@@ -4,7 +4,7 @@ metadata:
   name: platform-docs
   description: ADR・Runbook・作業ログなどプラットフォーム全体のドキュメント
   annotations:
-    github.com/project-slug: okccl/platform-docs
+    github.com/project-slug: ccl-labs/platform-docs
   tags:
     - documentation
     - adr
