@@ -54,8 +54,6 @@ bootstrap
 
 ## Runbook一覧
 
-プラットフォーム運用中に発生した既知の問題と対処手順を記録しています。
-
 | No. | タイトル | 関連コンポーネント |
 |---|---|---|
 | [Runbook-001](docs/runbook/Runbook-001-secrets-management.md) | シークレット追加・更新手順 | SOPS / ESO / ArgoCD |
