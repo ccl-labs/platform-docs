@@ -1,8 +1,7 @@
 site_name: Platform Docs
 site_description: Platform Engineering ドキュメント - ADR・Runbook・作業ログ
-docs_dir: .
 nav:
-  - Overview: README.md
+  - Overview: index.md
   - ADR:
     - ADR-001 GitOpsエンジン: adr/ADR-001-gitops-engine.md
     - ADR-002 Helm Library Chart: adr/ADR-002-helm-library-chart.md
