@@ -14,13 +14,13 @@ ADRや作業手順書など、platformに関係するドキュメント類を保
 
 | No. | タイトル | 対象リポジトリ | Status |
 |---|---|---|---|
-| [ADR-001](adr/ADR-001-gitops-engine.md) | GitOpsエンジンの選択 | platform-gitops / platform-infra | Accepted |
-| [ADR-002](adr/ADR-002-helm-library-chart.md) | Kubernetesマニフェスト抽象化方法の選択 | platform-charts / platform-gitops | Accepted |
-| [ADR-003](adr/ADR-003-secrets-management.md) | Secret管理戦略の選択 | platform-gitops | Accepted |
-| [ADR-004](adr/ADR-004-postgresql-operator.md) | PostgreSQL Operatorの選択 | platform-gitops / platform-charts | Accepted |
-| [ADR-005](adr/ADR-005-crossplane.md) | インフラリソース管理の責務分離（Crossplane vs Terraform） | platform-gitops / platform-infra | Draft |
-| [ADR-006](adr/ADR-006-cilium.md) | CNIの選択（Cilium） | platform-infra | Draft |
-| [ADR-007](adr/ADR-007-local-to-cloud.md) | Local→Cloud 移行パス設計方針 | platform-infra / platform-gitops | Draft |
+| [ADR-001](docs/adr/ADR-001-gitops-engine.md) | GitOpsエンジンの選択 | platform-gitops / platform-infra | Accepted |
+| [ADR-002](docs/adr/ADR-002-helm-library-chart.md) | Kubernetesマニフェスト抽象化方法の選択 | platform-charts / platform-gitops | Accepted |
+| [ADR-003](docs/adr/ADR-003-secrets-management.md) | Secret管理戦略の選択 | platform-gitops | Accepted |
+| [ADR-004](docs/adr/ADR-004-postgresql-operator.md) | PostgreSQL Operatorの選択 | platform-gitops / platform-charts | Accepted |
+| [ADR-005](docs/adr/ADR-005-crossplane.md) | インフラリソース管理の責務分離（Crossplane vs Terraform） | platform-gitops / platform-infra | Draft |
+| [ADR-006](docs/adr/ADR-006-cilium.md) | CNIの選択（Cilium） | platform-infra | Draft |
+| [ADR-007](docs/adr/ADR-007-local-to-cloud.md) | Local→Cloud 移行パス設計方針 | platform-infra / platform-gitops | Draft |
 
 ---
 
@@ -58,14 +58,14 @@ ADRや作業手順書など、platformに関係するドキュメント類を保
 
 | No. | タイトル | 関連コンポーネント |
 |---|---|---|
-| [Runbook-001](runbook/Runbook-001-cnpg-wal-error.md) | CNPG 旧 primary WAL エラー対処 | CloudNativePG |
-| [Runbook-002](runbook/Runbook-002-coredns.md) | CoreDNS への host.k3d.internal 登録 | k3d / CoreDNS |
+| [Runbook-001](docs/runbook/Runbook-001-cnpg-wal-error.md) | CNPG 旧 primary WAL エラー対処 | CloudNativePG |
+| [Runbook-002](docs/runbook/Runbook-002-coredns.md) | CoreDNS への host.k3d.internal 登録 | k3d / CoreDNS |
 
 ---
 
 ## 作業ログ
 
-[worklog](worklog)：各Phaseごとの作業記録
+[worklog](docs/worklog)：各Phaseごとの作業記録
 
 ---
 
@@ -73,10 +73,10 @@ ADRや作業手順書など、platformに関係するドキュメント類を保
 
 | リポジトリ | 役割 |
 |---|---|
-| [platform-infra](https://github.com/okccl/platform-infra) | k3d クラスタ IaC・mise・Terraform（EKS） |
-| [platform-gitops](https://github.com/okccl/platform-gitops) | ArgoCD による GitOps 管理 |
-| [platform-charts](https://github.com/okccl/platform-charts) | Helm Library Chart（common-app / common-db） |
-| [sample-backend](https://github.com/okccl/sample-backend) | FastAPI + PostgreSQL（Golden Path利用例） |
-| [sample-frontend](https://github.com/okccl/sample-frontend) | React + Vite（Golden Path利用例） |
+| [platform-infra](https://github.com/ccl-labs/platform-infra) | k3d クラスタ IaC・mise・Terraform（EKS） |
+| [platform-gitops](https://github.com/ccl-labs/platform-gitops) | ArgoCD による GitOps 管理 |
+| [platform-charts](https://github.com/ccl-labs/platform-charts) | Helm Library Chart（common-app / common-db） |
+| [sample-backend](https://github.com/ccl-labs/sample-backend) | FastAPI + PostgreSQL（Golden Path利用例） |
+| [sample-frontend](https://github.com/ccl-labs/sample-frontend) | React + Vite（Golden Path利用例） |
 
-ポートフォリオ全体の概要は [okccl/okccl](https://github.com/okccl/okccl) を参照してください。
+ポートフォリオ全体の概要は [ccl-labs](https://github.com/ccl-labs) を参照してください。
