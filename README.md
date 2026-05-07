@@ -27,7 +27,7 @@ ADRや作業手順書など、platformに関係するドキュメント類を保
 ## 意思決定の全体像
 
 ```
-ローカル基盤
+GitOps 基盤
 └─ ADR-001: ArgoCD を GitOps エンジンに選択
       └─ pull型によるdrift検出・GUI・App of Appsパターン
 bootstrap
