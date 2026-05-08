@@ -328,6 +328,40 @@ resource.customizations.health.admissionregistration.k8s.io_ValidatingWebhookCon
 
 ---
 
+## 13. Keycloak OIDC invalid_scope 修正・bootstrap 完全検証
+
+### 問題
+
+3回目の bootstrap 完了後、ArgoCD の Keycloak OIDC ログインで `invalid_scope: Invalid scopes: openid profile email groups` が発生。
+
+### 原因
+
+`keycloak-config-cli` の realm 設定で argocd・backstage クライアントに `optionalClientScopes: [groups]` のみ記載し `defaultClientScopes` を省略していた。既存レルムへの適用（update）では未指定フィールドが保持されるが、空 DB からの新規作成（create）では Keycloak のデフォルトスコープが付与されず `profile`・`email` が client に紐付かない状態になる。
+
+### 対処
+
+`platform/keycloak/config-cli/realm-configmap.yaml` の argocd・backstage クライアントに `defaultClientScopes` を明示。
+
+```yaml
+defaultClientScopes:
+  - acr
+  - basic
+  - email
+  - profile
+  - roles
+  - web-origins
+```
+
+### bootstrap 検証結果（2026-05-09）
+
+- 所要時間: 約 21 分（`make bootstrap` 完了から全 Application Synced/Healthy まで）
+- 残課題:
+  - keycloak-db（CNPG Cluster）が Healthy 判定される前に keycloak が起動を試みて CrashLoop → 自動復旧（実害なし）
+  - keda-operator-metrics-apiserver が `kedaorg-certs` Secret 生成待ちで数分 FailedMount → 自動復旧
+  - backstage・KEDA のイメージ Pull に時間がかかる（カスタムイメージ・ghcr.io 起因）
+
+---
+
 ## 追加関連ファイル一覧（7〜12）
 
 | ファイル | 変更内容 |
@@ -345,3 +379,4 @@ resource.customizations.health.admissionregistration.k8s.io_ValidatingWebhookCon
 | `platform-infra/k3d/Makefile` | SSH エージェント廃止、GitHub App credential template を apply するよう変更 |
 | `platform-docs/docs/runbook/Runbook-001-secrets-management.md` | 新規シークレット追加手順を修正（encrypt-first→sops edit 順序） |
 | `platform/argocd/values.yaml` | `ValidatingWebhookConfiguration` ヘルスチェック追加 |
+| `platform/keycloak/config-cli/realm-configmap.yaml` | argocd・backstage クライアントに `defaultClientScopes` を明示 |
