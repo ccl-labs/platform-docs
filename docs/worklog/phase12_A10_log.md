@@ -134,3 +134,166 @@ git push
 | `platform-gitops/apps/sample-backend/manifests/httproute.yaml` | Gateway API デフォルト値を明示 |
 | `platform-gitops/apps/sample-frontend/manifests/httproute.yaml` | Gateway API デフォルト値を明示 |
 | `platform-infra/Makefile` | `cluster-start` / `cluster-stop` / `cluster-restart` ターゲット追加 |
+
+---
+
+## 7. F-3: Kyverno generate による ghcr-pull-secret 自動配布
+
+### 背景
+
+`sample-app` namespace への `ghcr-pull-secret` 配布は ExternalSecret を手動追加する暫定対応だった。F-3 Golden Path の目標は「namespace に特定ラベルを貼るだけで Secret が自動配布される」ことであり、Kyverno の `generate` + `clone` 方式で本対応を実施した。
+
+### 設計
+
+```
+1Password (ghcr-pat)
+  ↓ ExternalSecret (platform-secrets/ghcr-pull-secret-source.yaml)
+platform-secrets/ghcr-pull-secret  ← clone source
+  ↓ Kyverno ClusterPolicy (generate-ghcr-pull-secret)
+ghcr-pull-secret: enabled ラベルが付いた各 NS
+```
+
+`platform/policy/policies/generate-ghcr-pull-secret.yaml` を作成：
+
+```yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: generate-ghcr-pull-secret
+spec:
+  generateExisting: true
+  rules:
+    - name: generate-ghcr-pull-secret
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              selector:
+                matchLabels:
+                  ghcr-pull-secret: enabled
+      generate:
+        apiVersion: v1
+        kind: Secret
+        name: ghcr-pull-secret
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        clone:
+          namespace: platform-secrets
+          name: ghcr-pull-secret
+```
+
+clone source 用 ExternalSecret（`platform/secrets/sources/ghcr-pull-secret-source.yaml`）を作成し `kustomization.yaml` に追記。`apps/sample-app-ns.yaml` に `ghcr-pull-secret: enabled` ラベルを追加。暫定 ExternalSecret と孤立ファイルを削除。
+
+```bash
+cd ~/platform-gitops
+git add platform/policy/policies/generate-ghcr-pull-secret.yaml \
+        platform/secrets/sources/ghcr-pull-secret-source.yaml \
+        platform/secrets/sources/kustomization.yaml \
+        apps/sample-app-ns.yaml
+git rm apps/sample-backend/manifests/ghcr-pull-secret.yaml \
+       platform/secrets/external-secrets/namespace-labels.yaml
+git commit -m "feat: Kyverno generate で ghcr-pull-secret を NS ラベルトリガーで自動配布"
+git push
+```
+
+---
+
+## 8. platform-secrets-sources の OutOfSync 修正
+
+ESO controller が ExternalSecret にデフォルトフィールドを自動補完することで常に OutOfSync となっていた。`platform/applications/root-2-auth/platform-secrets-sources.yaml` に該当フィールドの `ignoreDifferences` と `RespectIgnoreDifferences=true` を追加して解消した。
+
+---
+
+## 9. 【トラブル】ArgoCD リポジトリ認証を GitHub App 方式に移行
+
+### 問題
+
+ArgoCD GUI で "Unable to load data: error acquiring repo lock..." エラーが継続発生。`okccl` → `ccl-labs` org 移行時に SSH デプロイキーが引き継がれず、ArgoCD が Git リポジトリにアクセスできなくなっていた。
+
+### 対処
+
+GitHub App 認証（HTTPS credential template 方式）に移行した。`secrets/templates/argocd-repo-creds.yaml` にひな形を作成し、ユーザーが PEM を転記して SOPS 暗号化。bootstrap Makefile を SSH エージェント不要の構成に更新。
+
+```bash
+# Makefile の bootstrap-argocd で GitHub App credential template を適用
+SOPS_AGE_KEY_FILE=$(SOPS_AGE_KEY) sops decrypt $(SECRETS_DIR)/argocd-repo-creds.yaml \
+    | kubectl apply -f -
+```
+
+### 派生トラブル: 全 Application の repoURL を SSH→HTTPS に一括変換
+
+credential template は URL プレフィックスマッチで動作するため、HTTPS template に対して SSH URL の Application は認証されず全リポジトリアクセスが失敗した。影響範囲を先に確認すべきだった（反省）。
+
+`platform-gitops` 配下 32 ファイルを sed で一括変換し、稼働中 17 Application は `argocd app set` で即時更新：
+
+```bash
+find . -name "*.yaml" -exec grep -l "git@github.com:ccl-labs/" {} \; \
+  | xargs sed -i 's|git@github.com:ccl-labs/|https://github.com/ccl-labs/|g'
+
+git add -A
+git commit -m "fix: ArgoCD Application の repoURL を SSH から HTTPS に移行"
+git push
+```
+
+---
+
+## 10. Runbook-001: 新規シークレット追加手順の誤りを修正
+
+### 問題
+
+`sops secrets/encrypted/argocd-repo-creds.yaml` を実行したところ `sops metadata not found` エラーが発生。
+
+### 原因と対処
+
+テンプレートをコピーした直後のファイルは SOPS メタデータを持たないため、`sops <file>`（編集モード）は動作しない。正しい手順は「`sops --encrypt --in-place` でメタデータを生成してから `sops <file>` で編集」。Runbook-001 を修正し注意書きを追加した。
+
+---
+
+## 11. Kyverno backgroundController に Secret RBAC を追加
+
+### 背景
+
+`kyverno-policies` Application が `generate-ghcr-pull-secret` ClusterPolicy の apply 時にエラーを出し続けた。Kyverno admission webhook が ClusterPolicy 検証時に `kyverno-background-controller` SA の Secret 権限不足を検出して拒否していた。
+
+### 対処
+
+最初に ClusterRole + ClusterRoleBinding を手動作成したが「スコープが広すぎる・ArgoCD 管理外」としてユーザーレビューで差し戻し。Helm values 経由（`backgroundController.rbac.clusterRole.extraResources`）で追加することにした：
+
+```yaml
+# platform/applications/root-2-auth/kyverno.yaml
+backgroundController:
+  replicas: 1
+  rbac:
+    clusterRole:
+      extraResources:
+        - apiGroups: [""]
+          resources: [secrets]
+          verbs: [get, list, watch, create, update, patch, delete]
+```
+
+```bash
+cd ~/platform-gitops
+git add platform/applications/root-2-auth/kyverno.yaml
+git commit -m "fix: kyverno backgroundController に Secret RBAC を追加"
+git push
+```
+
+---
+
+## 追加関連ファイル一覧（7〜11）
+
+| ファイル | 変更内容 |
+|---|---|
+| `platform/policy/policies/generate-ghcr-pull-secret.yaml` | 新規作成: Kyverno generate ClusterPolicy |
+| `platform/secrets/sources/ghcr-pull-secret-source.yaml` | 新規作成: clone source 用 ExternalSecret |
+| `platform/secrets/sources/kustomization.yaml` | ghcr-pull-secret-source.yaml を resources に追加 |
+| `apps/sample-app-ns.yaml` | `ghcr-pull-secret: enabled` ラベルを追加 |
+| `apps/sample-backend/manifests/ghcr-pull-secret.yaml` | 削除（暫定対応を廃止） |
+| `platform/secrets/external-secrets/namespace-labels.yaml` | 削除（孤立ファイル） |
+| `platform/applications/root-2-auth/platform-secrets-sources.yaml` | ESO デフォルト補完フィールドの ignoreDifferences を追加 |
+| `platform/applications/root-2-auth/kyverno.yaml` | backgroundController Secret RBAC を Helm values に追加 |
+| `secrets/templates/argocd-repo-creds.yaml` | 新規作成: GitHub App credential template ひな形 |
+| 全 Application yaml（32 ファイル） | repoURL を SSH→HTTPS に一括変換 |
+| `platform-infra/k3d/Makefile` | SSH エージェント廃止、GitHub App credential template を apply するよう変更 |
+| `platform-docs/docs/runbook/Runbook-001-secrets-management.md` | 新規シークレット追加手順を修正（encrypt-first→sops edit 順序） |
