@@ -4,6 +4,8 @@
 |---|---|
 | 1 | Backstage Software Template 設計 |
 | 2 | DOCS_RULE.md に設計ドキュメントルールを追加 |
+| 3 | Backstage Software Template 実装 |
+| 4 | テスト前の設計見直し（fullstack テンプレートへの再設計） |
 
 ---
 
@@ -60,9 +62,74 @@ HTTPRoute のホスト名は `<app-name>.platform.local` で自動生成。
 
 ---
 
+---
+
+## 3. Backstage Software Template 実装
+
+設計ドキュメントに従い、以下の順序で実装。
+
+**① common-db に db.enabled フラグを追加**
+
+library chart（`common-db`）の `values.yaml` デフォルト値は親 chart に引き継がれないため、`sample-backend/values.yaml` にも `db.enabled: true` を追加する必要があった。`_helpers.tpl` の `common-db.cluster` を `{{- if .Values.db.enabled }}` で囲み、`scheduledBackup` の条件を `and db.enabled backup.enabled` に変更。`helm template` で enabled/disabled 両ケースを確認済み。
+
+**② generic-backend / generic-frontend chart を新規作成**
+
+`sample-backend` / `sample-frontend` と同じ wrapper chart 構成で作成。`generic-frontend/values.yaml` に `db.name: ""` が必要（`common-app.deployment` が `.Values.db.name` を参照するため）。実装時にエラーで判明し追加。
+
+**③ backend / frontend テンプレートを実装**
+
+`backstage/templates/backend/` と `backstage/templates/frontend/` に template.yaml + app-skeleton + gitops-skeleton を作成。
+
+実装時に判明した設計との差異:
+
+- app-skeleton のワークフローは `build.yaml` 1本で完結（`update-gitops.yaml` は platform-gitops 側に既存のため app 側には不要）
+- `publish:github:pull-request` は `sourcePath: ./gitops` + `targetPath: .` の両方を指定する必要がある（`sourcePath` 未指定だとワークスペース全体が対象になる）
+- `catalog:register` は `publish:github` の出力 `repoContentsUrl` + `catalogInfoPath` を使う（URL を手動構築する必要はなかった）
+- `build.yaml` 内で Backstage テンプレート変数と GitHub Actions 変数が混在するため、GitHub Actions 変数は `${{ "{{" }} github.sha {{ "}}" }}` 形式でエスケープが必要
+
+**④ platform/backstage/values.yaml に template URL を追加・Backstage 動作確認**
+
+ArgoCD sync 後に Backstage hard refresh。Scaffolderにテンプレートが2件表示されることを確認。
+
+---
+
+## 4. テスト前の設計見直し（fullstack テンプレートへの再設計）
+
+Scaffolderのテスト実行前に Namespace 設計の問題が判明。現在の設計では backend/frontend がそれぞれ独立した Namespace を持つが、同一アプリの front/back は常にセットで作成するため同一 Namespace に同居させる構成が自然。
+
+### 設計変更の決定事項
+
+| 項目 | 変更前 | 変更後 |
+|---|---|---|
+| テンプレート構成 | backend + frontend の2テンプレート | fullstack 1テンプレート |
+| リポジトリ命名 | `<appName>` | `<appName>-backend` / `<appName>-frontend` |
+| Namespace | テンプレートごとに独立 | 1アプリ = 1 Namespace（`<appName>`） |
+| ArgoCD Application | 1本 | 2本（`<appName>-backend` / `<appName>-frontend`） |
+| HTTPRoute | 各アプリに独立したホスト | 同一ホストでパス分割（`/api` → backend リライト、`/` → frontend） |
+
+backend-only が必要な場合は別途テンプレートを作成する方針。
+
+### 次セッションで判断が必要な事項
+
+- **`managedNamespaceMetadata` の扱い**: backend/frontend 2つの Application が同一 Namespace を管理する場合、どちらが Namespace ラベルを持つか。frontend が先に sync した場合に `ghcr-pull-secret` ラベルなし Namespace が一時的に作られ Pod 起動が失敗する可能性がある。sync-wave での順序制御も選択肢。
+- **同一ホスト・複数 HTTPRoute の挙動**: Envoy Gateway での `/api` + `/` の分割ルーティングは仕様上可能だが実装で確認が必要。
+
+設計ドキュメントは fullstack 設計に更新済み。既存の backend/frontend テンプレートは次セッションで削除・置き換え予定。
+
+---
+
 ## 変更ファイル一覧
 
 | ファイル | 変更内容 |
 |---|---|
-| `~/internal/claude/tmp_backstage_software_template.md` | 設計ドキュメント（新規作成） |
+| `~/internal/claude/tmp_backstage_software_template.md` | 設計ドキュメント（新規作成・fullstack 設計に更新） |
 | `~/internal/claude/DOCS_RULE.md` | 設計ドキュメントのルールを追加 |
+| `platform-charts/charts/common-db/values.yaml` | `db.enabled: true` を追加 |
+| `platform-charts/charts/common-db/templates/_helpers.tpl` | `enabled` フラグで条件分岐を追加 |
+| `platform-charts/charts/sample-backend/templates/all.yaml` | db インクルードを `if db.enabled` ブロックに移動 |
+| `platform-charts/charts/sample-backend/values.yaml` | `db.enabled: true` を追加 |
+| `platform-charts/charts/generic-backend/` | 新規作成（wrapper chart） |
+| `platform-charts/charts/generic-frontend/` | 新規作成（wrapper chart） |
+| `platform-gitops/backstage/templates/backend/` | 新規作成（次セッションで fullstack に置き換え予定） |
+| `platform-gitops/backstage/templates/frontend/` | 新規作成（次セッションで fullstack に置き換え予定） |
+| `platform-gitops/platform/backstage/values.yaml` | backend/frontend template URL を追加 |
