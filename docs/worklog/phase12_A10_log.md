@@ -281,7 +281,54 @@ git push
 
 ---
 
-## 追加関連ファイル一覧（7〜11）
+## 12. 【トラブル】bootstrap 再実行時の ESO webhook 未起動問題
+
+### 問題
+
+bootstrap 再実行で `external-secrets-config`（wave 3）が sync しようとした際、ESO の validation webhook が「no endpoints available」で応答できず `ClusterSecretStore` の作成に失敗。Keycloak の ExternalSecret が全滅し Pod が `CreateContainerConfigError` で起動不能になった。
+
+### 原因
+
+ESO の cert-controller が webhook TLS 証明書を非同期で生成するため、ESO Deployment が `Available` になっても webhook がまだ呼び出せない状態がある。ArgoCD のデフォルト Deployment ヘルスチェックはこのラグをカバーできず、wave 1 完了と判定して wave 3 に進んでしまった。
+
+コミュニティ調査（GitHub issues #2273, #4540 等）で広く知られた問題と確認。ESO 公式の ArgoCD 向けガイドは存在しない。コミュニティの推奨は `ValidatingWebhookConfiguration` の `caBundle` が cert-controller によって注入済みかを確認するカスタムヘルスチェックで、webhook を持つ全 Operator（ESO・Kyverno・CNPG 等）に一本で適用できる。
+
+### 手動復旧
+
+```bash
+argocd app sync external-secrets-config --server-side
+argocd app sync keycloak-db --server-side
+argocd app sync keycloak-config-cli --server-side
+kubectl rollout restart statefulset keycloak-keycloakx -n keycloak
+```
+
+### 根本対処
+
+`platform/argocd/values.yaml` に `ValidatingWebhookConfiguration` のカスタムヘルスチェックを追加。全 webhook の caBundle 注入を確認してから次の wave に進むようになった。
+
+```yaml
+resource.customizations.health.admissionregistration.k8s.io_ValidatingWebhookConfiguration: |
+  hs = {}
+  if obj.webhooks ~= nil then
+    for i, webhook in ipairs(obj.webhooks) do
+      if webhook.clientConfig ~= nil then
+        if webhook.clientConfig.caBundle == nil or webhook.clientConfig.caBundle == "" then
+          hs.status = "Progressing"
+          hs.message = "Waiting for CA bundle injection by cert-controller"
+          return hs
+        end
+      end
+    end
+    hs.status = "Healthy"
+    return hs
+  end
+  hs.status = "Progressing"
+  return hs
+```
+
+---
+
+## 追加関連ファイル一覧（7〜12）
 
 | ファイル | 変更内容 |
 |---|---|
@@ -297,3 +344,4 @@ git push
 | 全 Application yaml（32 ファイル） | repoURL を SSH→HTTPS に一括変換 |
 | `platform-infra/k3d/Makefile` | SSH エージェント廃止、GitHub App credential template を apply するよう変更 |
 | `platform-docs/docs/runbook/Runbook-001-secrets-management.md` | 新規シークレット追加手順を修正（encrypt-first→sops edit 順序） |
+| `platform/argocd/values.yaml` | `ValidatingWebhookConfiguration` ヘルスチェック追加 |
