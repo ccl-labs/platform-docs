@@ -120,3 +120,15 @@ Option 2 は Makefile が bootstrap 時の順序保証を担い、
   - 影響: タイムアウト後に ArgoCD が自動 retry して収束する。
   - 手動回避: Sync 停止 → 再実行でタイムアウトまでの待ち時間を短縮できる
   - 許容判断: 多少の時間はかかるが自動収束が確認できているため。また、根本解決（証明書の事前発行）は管理コストに見合わない
+
+**例外: Keycloak に関わる CR は個別にヘルスチェックを定義する**
+
+Keycloak は ArgoCD の OIDC プロバイダーであるため、起動失敗時に ArgoCD GUI へのログイン手段が失われる。
+自動収束を待つだけでは状態確認の手段自体がなくなるため、許容済みリスクの対象外とする。
+
+現在定義済みのヘルスチェック（`platform/argocd/values.yaml`）:
+
+| リソース種別 | 理由 |
+|---|---|
+| `ExternalSecret` | Keycloak の起動に必要な Secret 生成の完了を wave 制御に反映するため |
+| `ClusterSecretStore` | `kubernetes-store` が Ready になる前に ExternalSecret が reconcile されると Keycloak 起動が失敗するため |
