@@ -51,25 +51,32 @@ kubectl get externalsecret -n platform-secrets
 
 ## 新規シークレットの追加
 
-### 1. テンプレートをコピーして編集
+### 1. テンプレートをコピー
 
 ```bash
 cd ~/platform-gitops
 
-# テンプレートが存在する場合はコピー
+# テンプレートが存在する場合はコピー（この時点では値はプレースホルダーのまま）
 cp secrets/templates/<近いもの>.yaml platform/secrets/sources/<新ファイル>.yaml
 
 # なければ既存ファイルを参考に作成
 # 形式: apiVersion/kind/metadata/stringData の通常の Secret マニフェスト
 ```
 
-### 2. SOPS で暗号化
+### 2. 先に暗号化してからエディタで実際の値を入力
 
 ```bash
+# まず暗号化（プレースホルダーが暗号化される。平文の実値はまだ入れない）
 sops --encrypt --in-place platform/secrets/sources/<新ファイル>.yaml
+
+# エディタで開いてプレースホルダーを実際の値に書き換える
+# 保存・終了すると自動で再暗号化される
+sops platform/secrets/sources/<新ファイル>.yaml
 ```
 
 `.sops.yaml` のルールにより `stringData` / `data` フィールドが自動で暗号化される。
+
+> **注意**: テンプレートをコピーした直後は SOPS メタデータがないため `sops <file>` は "sops metadata not found" エラーになる。必ず `--encrypt --in-place` を先に実行すること。
 
 ### 3. kustomization.yaml に追加
 
