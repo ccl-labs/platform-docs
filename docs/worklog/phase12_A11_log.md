@@ -10,6 +10,9 @@
 | 6 | 設計ドキュメント修正（自己レビュー対応） |
 | 7 | fullstack テンプレート実装 |
 | 8 | Scaffolderテスト・バグ修正 |
+| 9 | GHCR push 権限問題の調査・修正（続き） |
+| 10 | platform-gitops push 方式の検討 |
+| 11 | ArgoCD Application 配置の設計見直し・user-apps App-of-Apps 実装 |
 
 ---
 
@@ -204,6 +207,63 @@ Backstage から実行テストを行い、複数のエラーを修正。
 | catalog:register 409 | 途中失敗で登録済みのロケーションが残存 | `catalog:register` に `optional: true` を追加 |
 | GHCR push 権限エラー | `GITHUB_TOKEN` では org の GHCR への push 不可 | GitHub App トークン（`owner: ccl-labs`）を生成して GHCR ログインに使用 |
 | GitHub App トークン生成失敗 | org variable は無料プランで private repo から参照不可 | リポジトリを public に変更（`repoVisibility: public`） |
+
+---
+
+## 9. GHCR push 権限問題の調査・修正（続き）
+
+前セッションで GitHub App トークンによる GHCR push に切り替えたが、引き続きエラーが発生。
+
+| エラー | 原因 | 対処 |
+|---|---|---|
+| `installation not allowed to Write organization package` | `ccl-labs-gitops` App のインストール権限に `packages` が未設定 | GitHub App → Organization permissions → Packages: R&W を追加・org 承認 |
+| 承認後も同エラー継続 | GitHub App トークンは GHCR org パッケージへの書き込みが構造的に不可（既知の制限、community discussion #57724 等で確認） | GHCR push を `GITHUB_TOKEN`（`packages: write`）に切り替え、GitHub App トークンは dispatch 専用に限定 |
+| `permission_denied: write_package` | org の Default workflow permissions が read-only だった | org Settings → Actions → General → Workflow permissions を "Read and write permissions" に変更 |
+| frontend のみ引き続き失敗 | org 設定変更前に rerun が開始されていた | 再 rerun で解消 |
+| 再削除・再実行後も `write_package` | 前回の失敗 push で GHCR に不完全なパッケージが残存し、Backstage App の所有として登録されていた | `https://github.com/orgs/ccl-labs/packages` から該当パッケージを手動削除 → 再実行で成功 |
+
+**確定した build.yaml 構成:**
+- `permissions: packages: write` をジョブに付与
+- GHCR ログイン: `GITHUB_TOKEN`（標準推奨方法）
+- dispatch: `ccl-labs-gitops` GitHub App トークン（`owner: ccl-labs`）
+
+---
+
+## 10. platform-gitops push 方式の検討
+
+PR マージ前に image dispatch が届き `values.yaml` が存在しないエラーが発生したことをきっかけに、PR なし直接 push の方針を検討。
+
+**`github:repo:push` の試行と失敗:**
+- パラメータ名エラー（`branch` → `defaultBranch`、`commitMessage` → `gitCommitMessage`）で1回修正
+- 修正後も `not-fast-forward` エラー。原因: このアクションは既存リポジトリへのファイル追加ではなく、新規 git 履歴を push する設計のため既存リポジトリに使えない
+
+**設計議論:**
+- dev 環境では PR レビューは不要（ガードレールはクラスタ側で担保）
+- `publish:github:pull-request` + auto-merge workflow、またはカスタムアクションが現実的な選択肢
+- → 後続の設計見直し（セクション11）により push 先ファイル構成が変わるため、push 方式の確定は保留
+
+---
+
+## 11. ArgoCD Application 配置の設計見直し・user-apps App-of-Apps 実装
+
+**問題の発見:** Scaffolderが `platform/applications/root-3-others/` に Application CR を追加していたが、ここは platform team 管理リソースの置き場であり、開発者アプリが混入すべきでない。
+
+**新しい設計:**
+
+| 変更点 | 変更前 | 変更後 |
+|---|---|---|
+| Application CR の場所 | `platform/applications/root-3-others/<appName>-*.yaml` | `apps/<appName>-*/application.yaml` |
+| ArgoCD Project | アプリごとに個別 Project | 全ユーザーアプリ共通の `user-apps` Project（platform team が一度だけ作成） |
+| 検出方式 | root-3-others App-of-Apps が直接管理 | `user-apps` App-of-Apps（`apps/*/application.yaml` を自動検出）が管理 |
+| Scaffolderの push 先 | `apps/` + `platform/applications/root-3-others/` | `apps/` 配下のみ |
+
+**実装内容:**
+- `platform/applications/root-3-others/user-apps-project.yaml` 新規作成（共有 AppProject）
+- `platform/applications/root-3-others/user-apps.yaml` 新規作成（App-of-Apps、`project: default`）
+- `gitops-skeleton` を新構成に更新：`platform/` を削除、`application.yaml` を `apps/<appName>-*/` 配下に追加
+- 設計ドキュメント（`tmp_backstage_software_template.md`）を新設計に更新
+
+**トラブル:** `user-apps.yaml` の `project: platform` が不正（`platform` プロジェクトは未定義、他アプリは `project: default` を使用）→ `project: default` に修正。
 
 ---
 
