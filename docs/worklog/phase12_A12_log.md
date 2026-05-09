@@ -469,7 +469,9 @@ Home ページは「クイックリンク + Grafana Platform Quick View」のみ
 | `platform-gitops/platform/applications/root-3-others/user-apps.yaml` | repoURL を apps-gitops に変更 |
 | `platform-gitops/backstage/templates/fullstack/template.yaml` | PR 送信先を apps-gitops に変更 |
 | `platform-gitops/.github/workflows/teardown.yaml` | チェックアウト先を apps-gitops に変更 |
+| `platform-gitops/.github/workflows/update-gitops.yaml` | チェックアウト先を apps-gitops に変更 |
 | `platform-gitops/apps/`（削除） | apps-gitops へ移行 |
+| `apps-gitops/.github/workflows/auto-merge-app-pr.yaml` | 新規作成（platform-gitopsからコピー） |
 | `backstage/packages/app/src/components/home/GrafanaDashboardWidget.tsx` | 新規作成 |
 | `backstage/packages/app/src/components/home/HomePage.tsx` | Grafana ウィジェット追加・不要ウィジェット削除 |
 | `backstage/packages/app/src/components/catalog/GrafanaDashboardCard.tsx` | 新規作成 |
