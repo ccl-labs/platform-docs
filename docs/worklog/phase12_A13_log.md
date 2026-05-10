@@ -9,6 +9,8 @@
 | 5 | Discord 通知設定（AlertmanagerConfig + シークレット管理） |
 | 6 | AlertmanagerConfig namespace スコープ問題の修正 |
 | 7 | PROJECT.md 更新 |
+| 8 | MinIO クラウドバックアップ設計 |
+| 9 | CNPG ScheduledBackup スケジュール変更（2時→21時） |
 
 ---
 
@@ -232,10 +234,10 @@ alertmanager:
 |---|---|
 | `platform-gitops/platform/keycloak/db-config/cnpg-cluster.yaml` | backup・monitoring セクション追加 |
 | `platform-gitops/platform/keycloak/db-config/minio-backup-secret.yaml` | 新規作成（ExternalSecret） |
-| `platform-gitops/platform/keycloak/db-config/scheduledbackup.yaml` | 新規作成（ScheduledBackup daily 2:00am） |
+| `platform-gitops/platform/keycloak/db-config/scheduledbackup.yaml` | 新規作成（ScheduledBackup daily 21:00） |
 | `platform-gitops/platform/backstage/db-config/cluster.yaml` | backup・monitoring セクション追加 |
 | `platform-gitops/platform/backstage/db-config/minio-backup-secret.yaml` | 新規作成（ExternalSecret） |
-| `platform-gitops/platform/backstage/db-config/scheduledbackup.yaml` | 新規作成（ScheduledBackup daily 2:00am） |
+| `platform-gitops/platform/backstage/db-config/scheduledbackup.yaml` | 新規作成（ScheduledBackup daily 21:00） |
 | `platform-charts/charts/common-db/templates/_helpers.tpl` | monitoring.enablePodMonitor テンプレート追加 |
 | `platform-charts/charts/common-db/values.yaml` | db.monitoring.enablePodMonitor デフォルト値追加 |
 | `platform-gitops/platform/monitoring/alerts/cnpg-alerts.yaml` | 新規作成（PrometheusRule 3アラート） |
@@ -252,3 +254,61 @@ alertmanager:
 | `platform-gitops/platform/secrets/sources/discord-webhook-secret-source.yaml` | 新規作成（SOPS 暗号化） |
 | `platform-gitops/platform/monitoring/values.yaml` | alertmanagerConfigMatcherStrategy.type: None 追加 |
 | `~/internal/claude/PROJECT.md` | 完了タスク削除・運用メモ追記 |
+| `platform-gitops/platform/keycloak/db-config/scheduledbackup.yaml` | スケジュール 2:00am → 21:00 に変更（#9） |
+| `platform-gitops/platform/backstage/db-config/scheduledbackup.yaml` | スケジュール 2:00am → 21:00 に変更（#9） |
+| `~/internal/claude/tmp_minio_cloud_backup.md` | 新規作成（MinIO クラウドバックアップ設計書）（#8） |
+
+---
+
+## 8. MinIO クラウドバックアップ設計
+
+### 背景
+
+WSL 全損時のデータ保護として、ローカル MinIO に蓄積された CNPG バックアップデータをクラウドへ退避する設計を行った。GCS を採用した理由は Phase13/14 で Google Cloud メインの構成を予定しているため。
+
+### 設計内容
+
+**アーキテクチャ選択: WSL ホスト（cron + rclone）**
+
+MinIO データは `~/minio-data/` という WSL ホストのファイルシステム上にあるため、Kubernetes CronJob より WSL cron の方が障害ポイントが少なく適切と判断した。Phase13 でクラウド移行後は MinIO ごと不要になる。
+
+**コピー方式: `rclone copy`（`rclone sync` ではなく）**
+
+MinIO 側は CNPG の `retentionPolicy: 7d` で古いバックアップが自動削除される。`rclone sync` にするとその削除が GCS にも伝播し、クラウドバックアップの意義が薄れる。`rclone copy` で GCS に累積保存し、GCS の Object Lifecycle ルール（30日 Delete）で管理する。
+
+**GCS リージョン: `us-central1`**
+
+GCS の Always Free（5GB/月）は US リージョン限定。`asia-northeast1`（東京）は無料枠対象外のため、レイテンシ不問の非同期バックアップには `us-central1` を選択した。
+
+**MinIO 認証情報の取得**
+
+MinIO コンテナは `MINIO_ROOT_PASSWORD_FILE` を使っており、`docker inspect` からの環境変数取得は不確実。SOPS 管理の `minio-backup-secret-source.yaml` をスクリプト内で復号して使用する。
+
+**スケジュール設計**
+
+個人 PC（WSL）は深夜帯に停止している可能性が高いため、夜間（PC 起動中の時間帯）に設定した。
+
+| ジョブ | スケジュール | 理由 |
+|---|---|---|
+| CNPG ScheduledBackup | 毎日 21:00 | PC 起動中の時間帯 |
+| GCS sync（cron） | 毎日 23:00 | CNPG バックアップ完了後 2時間のバッファ |
+
+確認済み事項: rclone は `aqua:rclone/rclone` で mise 管理可能、MinIO コンテナ名 `minio-external` 確認、cron サービス active 確認、現在のバックアップサイズ 314MB（30日累積でも 5GB 以内の見込み）。
+
+設計書: `~/internal/claude/tmp_minio_cloud_backup.md`
+
+---
+
+## 9. CNPG ScheduledBackup スケジュール変更（2時→21時）
+
+設計（#8）で決定したスケジュールに合わせ、keycloak・backstage の ScheduledBackup を即時変更した。
+
+```yaml
+# 変更前
+schedule: "0 2 * * *"
+
+# 変更後
+schedule: "0 21 * * *"
+```
+
+GCS sync 側（cron `0 23 * * *`）は次セッションのクラウドバックアップ実装時に設定する。
