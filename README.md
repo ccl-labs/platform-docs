@@ -70,10 +70,10 @@ bootstrap
 
 | リポジトリ | 役割 |
 |---|---|
-| [platform-infra](https://github.com/ccl-labs/platform-infra) | k3d クラスタ IaC・mise・Terraform（EKS） |
-| [platform-gitops](https://github.com/ccl-labs/platform-gitops) | ArgoCD による GitOps 管理 |
-| [platform-charts](https://github.com/ccl-labs/platform-charts) | Helm Library Chart（common-app / common-db） |
-| [sample-backend](https://github.com/ccl-labs/sample-backend) | FastAPI + PostgreSQL（Golden Path利用例） |
-| [sample-frontend](https://github.com/ccl-labs/sample-frontend) | React + Vite（Golden Path利用例） |
+| [platform-infra](https://github.com/okccl/platform-infra) | k3d クラスタ IaC・mise・Terraform（EKS） |
+| [platform-gitops](https://github.com/okccl/platform-gitops) | ArgoCD による GitOps 管理 |
+| [platform-charts](https://github.com/okccl/platform-charts) | Helm Library Chart（common-app / common-db） |
+| [sample-backend](https://github.com/okccl/sample-backend) | FastAPI + PostgreSQL（Golden Path利用例） |
+| [sample-frontend](https://github.com/okccl/sample-frontend) | React + Vite（Golden Path利用例） |
 
-ポートフォリオ全体の概要は [ccl-labs](https://github.com/ccl-labs) を参照してください。
+ポートフォリオ全体の概要は [okccl](https://github.com/okccl) を参照してください。

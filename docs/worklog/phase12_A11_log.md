@@ -42,7 +42,7 @@
 
 ```
 1. fetch:template → アプリリポジトリ用スケルトン生成
-2. publish:github → ccl-labs/<app-name> リポジトリ作成・スケルトン push
+2. publish:github → okccl/<app-name> リポジトリ作成・スケルトン push
 3. fetch:template → platform-gitops 用ファイル生成（リポジトリ URL を変数として使用）
 4. publish:github:pull-request → platform-gitops に PR 作成
 5. catalog:register → Backstage カタログ登録
@@ -209,7 +209,7 @@ Backstage から実行テストを行い、複数のエラーを修正。
 | build.yaml 構文エラー | `${{ "{{" }} github.sha {{ "}}" }}` が正しく展開されない（`{{` になり `$` が落ちる） | `${{ "${{" }} github.sha ${{ "}}" }}` に修正（Backstage のデリミタは `${{` のため） |
 | PR 作成の重複エラー | 途中失敗で branch が残存 | `publish:github:pull-request` に `update: true` を追加 |
 | catalog:register 409 | 途中失敗で登録済みのロケーションが残存 | `catalog:register` に `optional: true` を追加 |
-| GHCR push 権限エラー | `GITHUB_TOKEN` では org の GHCR への push 不可 | GitHub App トークン（`owner: ccl-labs`）を生成して GHCR ログインに使用 |
+| GHCR push 権限エラー | `GITHUB_TOKEN` では org の GHCR への push 不可 | GitHub App トークン（`owner: okccl`）を生成して GHCR ログインに使用 |
 | GitHub App トークン生成失敗 | org variable は無料プランで private repo から参照不可 | リポジトリを public に変更（`repoVisibility: public`） |
 
 ---
@@ -220,16 +220,16 @@ Backstage から実行テストを行い、複数のエラーを修正。
 
 | エラー | 原因 | 対処 |
 |---|---|---|
-| `installation not allowed to Write organization package` | `ccl-labs-gitops` App のインストール権限に `packages` が未設定 | GitHub App → Organization permissions → Packages: R&W を追加・org 承認 |
+| `installation not allowed to Write organization package` | `okccl-gitops` App のインストール権限に `packages` が未設定 | GitHub App → Organization permissions → Packages: R&W を追加・org 承認 |
 | 承認後も同エラー継続 | GitHub App トークンは GHCR org パッケージへの書き込みが構造的に不可（既知の制限、community discussion #57724 等で確認） | GHCR push を `GITHUB_TOKEN`（`packages: write`）に切り替え、GitHub App トークンは dispatch 専用に限定 |
 | `permission_denied: write_package` | org の Default workflow permissions が read-only だった | org Settings → Actions → General → Workflow permissions を "Read and write permissions" に変更 |
 | frontend のみ引き続き失敗 | org 設定変更前に rerun が開始されていた | 再 rerun で解消 |
-| 再削除・再実行後も `write_package` | 前回の失敗 push で GHCR に不完全なパッケージが残存し、Backstage App の所有として登録されていた | `https://github.com/orgs/ccl-labs/packages` から該当パッケージを手動削除 → 再実行で成功 |
+| 再削除・再実行後も `write_package` | 前回の失敗 push で GHCR に不完全なパッケージが残存し、Backstage App の所有として登録されていた | `https://github.com/orgs/okccl/packages` から該当パッケージを手動削除 → 再実行で成功 |
 
 **確定した build.yaml 構成:**
 - `permissions: packages: write` をジョブに付与
 - GHCR ログイン: `GITHUB_TOKEN`（標準推奨方法）
-- dispatch: `ccl-labs-gitops` GitHub App トークン（`owner: ccl-labs`）
+- dispatch: `okccl-gitops` GitHub App トークン（`owner: okccl`）
 
 ---
 
