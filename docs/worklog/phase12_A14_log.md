@@ -9,6 +9,7 @@
 | 5 | Makefile cluster-start に CiliumNode 削除を追加（IP ズレ恒久対策） |
 | 6 | ghcr-pull-secret 仕組みの削除（packages public 化により不要と判明） |
 | 7 | トラブルシュート：GitHub Actions CI/CD 疎通（GITOPS_APP_PRIVATE_KEY 欠落・token スコープ不足・imagePullSecrets 残留）|
+| 8 | トラブルシュート：全 sync 後に sample-backend/frontend が Unknown（apps-gitops の application.yaml に ccl-labs 残留）|
 
 ---
 
@@ -248,6 +249,29 @@ with:
 
 ---
 
+## 8. トラブルシュート：全 sync 後に sample-backend/frontend が Unknown
+
+### 問題
+
+ArgoCD で全 Application を sync したところ、sample-backend / sample-frontend が `Unknown` になった。
+
+```
+application repo https://github.com/ccl-labs/apps-gitops.git is not permitted in project 'sample-apps'
+application repo https://github.com/ccl-labs/platform-charts.git is not permitted in project 'sample-apps'
+```
+
+### 原因
+
+`apps-gitops/apps/sample-backend/application.yaml` と `apps/sample-frontend/application.yaml` の `sources[].repoURL` が `ccl-labs` のまま残っていた。前回の一括置換では apps-gitops がローカルにクローンされていなかったため対象外になっていた。sync で ArgoCD がこの定義を適用し、AppProject の許可リストと不一致になった。
+
+### 対処
+
+GitHub API で両ファイルの `ccl-labs` → `okccl` を修正・push。ArgoCD が自動 sync で反映。
+
+あわせて apps-gitops を `/home/ccl/apps-gitops` にクローンし、今後の検索漏れを防止した。
+
+---
+
 ## 変更ファイル一覧
 
 | ファイル | 変更内容 |
@@ -268,3 +292,5 @@ with:
 | `platform-gitops/.github/workflows/update-gitops.yaml` | App token スコープに `repositories: apps-gitops` 追加 |
 | `apps-gitops/apps/sample-backend/values.yaml` | `pullSecretName` 削除 |
 | `apps-gitops/apps/sample-frontend/values.yaml` | `pullSecretName` 削除 |
+| `apps-gitops/apps/sample-backend/application.yaml` | sources の repoURL を ccl-labs → okccl に修正 |
+| `apps-gitops/apps/sample-frontend/application.yaml` | sources の repoURL を ccl-labs → okccl に修正 |
