@@ -84,7 +84,7 @@ GitOps と DR 手順を同一マニフェストで解決しようとしないこ
 
 #### ArgoCD ignoreDifferences の設定
 
-DR 実行後、ArgoCD はクラスターの `spec.bootstrap` が `recovery` になっていることを検知し `initdb` に戻そうとするが、CNPG webhook がこれを拒否する。これを防ぐため、対象の ArgoCD Application に以下の設定を追加する（**未実装**）。
+DR 実行後、ArgoCD はクラスターの `spec.bootstrap` が `recovery` になっていることを検知し `initdb` に戻そうとするが、CNPG webhook がこれを拒否する。これを防ぐため、対象の ArgoCD Application に以下の設定を追加する（**実装済み**）。
 
 ```yaml
 spec:
@@ -98,44 +98,35 @@ spec:
 
 `bootstrap` は一度きりの初期化イベントであり GitOps の管轄外という設計思想を ArgoCD に明示するものであり、これは本番標準のパターン。
 
+対象 Application（keycloak-db / backstage-db / sample-backend）に設定済み。`RespectIgnoreDifferences=true` を syncOptions に合わせて設定することで、sync 実行時にも該当フィールドへのパッチを抑止している。
+
 #### PVC Retain ポリシー
 
 DR クラスター（`recovery`）でリストア完了後、DR クラスターを削除して GitOps に戻す際、PVC を残しておくことでデータを保全する。ArgoCD が `initdb` マニフェストでクラスターを再作成した際、CNPG は PVC 上の既存データを検知し bootstrap をスキップする。
 
-> **確認・設定が必要**（**未実装**）: 現在の StorageClass / PVC 保持ポリシーが Retain になっているか要確認。
+**実装済み**:
+- `local-path-retain` StorageClass（`reclaimPolicy: Retain`）を GitOps で管理（root-1-gateway wave 0 で適用）
+- 全 CNPG クラスターの `storage.storageClass: local-path-retain` を設定済み（新規 PVC から自動適用）
+- 既存 PV は `kubectl patch` で Retain に変更済み
 
-#### DR マニフェスト構成（骨子）
+#### DR マニフェスト生成（実装済み）
 
-```yaml
-# cluster-recovery.yaml（DR 専用・ArgoCD 管理外・Runbook に添付）
-apiVersion: postgresql.cnpg.io/v1
-kind: Cluster
-metadata:
-  name: <cluster-name>
-  namespace: <namespace>
-spec:
-  instances: <N>
-  imageName: ghcr.io/cloudnative-pg/postgresql:<version>
-  storage:
-    size: <size>
-  bootstrap:
-    recovery:
-      source: minio-backup
-  externalClusters:
-    - name: minio-backup
-      barmanObjectStore:
-        endpointURL: "http://host.k3d.internal:9000"  # WSL全損時はGCSエンドポイントに変更
-        destinationPath: "s3://cnpg-backup/<cluster-name>"
-        s3Credentials:
-          accessKeyId:
-            name: minio-backup-secret
-            key: ACCESS_KEY_ID
-          secretAccessKey:
-            name: minio-backup-secret
-            key: ACCESS_SECRET_KEY
+DR マニフェストは静的ファイルとして管理せず、`make generate-dr-manifests` で GitOps ソースから動的生成する。これにより、クラスター設定変更時のドリフトを防ぐ。
+
+```bash
+# DR 手順の最初のステップとして実行（クラスターが落ちていても動作する）
+cd ~/platform-infra
+make generate-dr-manifests
+# → k3d/dr/<cluster-name>-recovery.yaml を生成
 ```
 
-> **未実装**: 各クラスター分の DR マニフェスト作成、Runbook への添付
+生成スクリプト（`k3d/scripts/generate-dr-manifests.py`）は以下を自動スキャンする:
+- `platform-gitops/platform/**/*.yaml` — `kind: Cluster` + `barmanObjectStore` を持つもの
+- `apps-gitops/apps/*/values.yaml` — `db.backup.enabled: true` のもの
+
+新しいクラスターが追加されても手動メンテナンス不要。生成ファイルは gitignore 済み（`k3d/dr/*.yaml`）。
+
+WSL 全損時は生成後に `endpointURL` を GCS エンドポイントに書き換えてから apply する（Runbook 参照）。
 
 ### 3.2 クラスター内障害（Pod / PV 障害）からの復旧
 
@@ -151,13 +142,13 @@ spec:
 
 ---
 
-## 4. 未実装事項
+## 4. 実装状況
 
-| 項目 | 詳細 | 参照 |
+| 項目 | 状態 | 参照 |
 |---|---|---|
-| `ignoreDifferences` 設定 | 各 CNPG クラスター管理 ArgoCD Application に追加 | 3.1 節 |
-| PVC Retain ポリシー確認 | StorageClass の reclaim policy 確認・変更 | 3.1 節 |
-| DR マニフェスト作成 | 各クラスター（keycloak-db / backstage-db / sample-backend-db）分 | 3.1 節 |
-| クラウドバックアップ実装 | GCS + rclone + WSL cron | `tmp_minio_cloud_backup.md` |
-| DR 手順書（Runbook）作成 | 各シナリオの具体的手順 | 3.2〜3.4 節 |
-| RTO/RPO 実測 | DR 手順確立後に計測 | 1.3 節 |
+| `ignoreDifferences` 設定 | **完了** | 3.1 節 |
+| PVC Retain ポリシー設定 | **完了**（`local-path-retain` SC + 既存 PV パッチ） | 3.1 節 |
+| DR マニフェスト生成スクリプト | **完了**（`make generate-dr-manifests`） | 3.1 節 |
+| クラウドバックアップ実装 | 未実装（Phase 13 前に対応予定） | `tmp_minio_cloud_backup.md` |
+| DR 手順書（Runbook）作成 | 未実装（クラウドバックアップ完了後） | 3.2〜3.4 節 |
+| RTO/RPO 実測 | 未実装（DR 手順確立後に計測） | 1.3 節 |
