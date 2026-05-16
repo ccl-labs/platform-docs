@@ -10,6 +10,9 @@
 | 6 | CNPG DR 実装：ArgoCD Application に ignoreDifferences を追加（3 Application） |
 | 7 | CNPG DR 実装：PVC Retain 対応（local-path-retain StorageClass 作成・既存 PV パッチ・CNPG 設定更新） |
 | 8 | CNPG DR 実装：DR マニフェスト動的生成スクリプト実装（make generate-dr-manifests） |
+| 9 | クラスター全損 DR テスト（MinIO 既存バックアップからのリストア検証） |
+| 10 | トラブルシュート：Backstage ImagePullBackOff を ESO GithubAccessToken ジェネレーターで解消 |
+| 11 | Backstage CI 整備：GitHub Actions による build & push + platform-gitops 自動更新 |
 
 ---
 
@@ -285,6 +288,114 @@ make generate-dr-manifests
 
 ---
 
+## 9. クラスター全損 DR テスト
+
+### 背景
+
+Phase12-A15 で実装した DR 設計（ignoreDifferences・PVC Retain・DR マニフェスト動的生成）の動作検証を実施した。
+
+### 実施内容
+
+MinIO に蓄積されていた既存バックアップデータを使い、クラスター全損からの CNPG リストアを検証した。既存クラスターは `make bootstrap` で再作成済みで保全すべきデータはなかったため、旧クラスター時代の MinIO データをそのままリストア元として使用した。
+
+### 結果
+
+リストア成功。DR 設計で実装した各コンポーネント（ignoreDifferences・PVC Retain・`make generate-dr-manifests`）が意図通りに機能することを確認した。
+
+---
+
+## 10. トラブルシュート：Backstage ImagePullBackOff
+
+### 背景
+
+`make bootstrap` でクラスターを再作成後、Backstage Pod が起動しなかった。前クラスターではイメージがキャッシュ済みだったため発覚していなかった。
+
+### 問題
+
+```
+Failed to pull image "ghcr.io/okccl/backstage:latest":
+failed to authorize: failed to fetch anonymous token:
+unexpected status from GET request to https://ghcr.io/token?...: 403 Forbidden
+```
+
+### 原因
+
+2 点の問題が重なっていた。
+
+1. **imagePullSecrets 未設定**：`ghcr.io/okccl/backstage:latest` はプライベートイメージだが、Deployment に imagePullSecrets が設定されていなかった
+2. **イメージ未 push**：`ghcr.io/okccl/backstage:latest` はローカルにビルド済みだったが GHCR には push されていなかった（`ccl-labs` org から `okccl` への移行時に未対応）
+
+### 対処
+
+imagePullSecrets の問題は ESO の `GithubAccessToken` ジェネレーターで解決した。既存の GitHub App（App ID: 3623421、`packages: write` 権限あり）の installation token を 30 分ごとに自動更新する `kubernetes.io/dockerconfigjson` 型シークレットを生成する構成を追加した。
+
+```yaml
+# GithubAccessToken ジェネレーター
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: GithubAccessToken
+metadata:
+  name: ghcr-token
+  namespace: backstage
+spec:
+  appID: "3623421"
+  installID: "131473521"  # okccl org への installation ID（GitHub API から取得）
+  auth:
+    privateKey:
+      secretRef:
+        name: backstage-secret  # GITHUB_APP_PRIVATE_KEY を既に保持している既存 Secret
+        key: GITHUB_APP_PRIVATE_KEY
+  permissions:
+    packages: read
+```
+
+installation ID は GitHub App の private key から JWT を生成し、GitHub API `/app/installations` を呼んで取得した。
+
+イメージ未 push の問題は CI 整備（→ 11 節）で根本解決した。
+
+---
+
+## 11. Backstage CI 整備
+
+### 背景
+
+GHCR へのイメージ push が手動運用になっており、`latest` タグの使用も含めて正しいフローに整備する必要があった。また `~/backstage` のリモートが旧 org (`ccl-labs/backstage`) を向いたままだった。
+
+### 実施内容
+
+**リモート更新**
+
+`ccl-labs` org は削除済みのため、リモートを `okccl/backstage` に更新した。
+
+```bash
+git remote set-url origin git@github.com:okccl/backstage.git
+```
+
+**GitHub Actions ワークフロー**
+
+`master` push をトリガーに以下を実行するワークフローを作成した。
+
+1. GitHub App トークンを生成（`actions/create-github-app-token@v1`）
+2. `yarn install --immutable` → `yarn tsc` → `yarn build:backend`
+3. `GITHUB_TOKEN` で GHCR にログインし `ghcr.io/okccl/backstage:sha-{SHA}` タグで push
+4. App トークンを使って `platform-gitops` をクローンし、`values.yaml` の `tag` を新 SHA に更新して push
+
+`latest` タグは廃止し git SHA タグを採用した。`platform-gitops` への自動コミットにより ArgoCD が差分を検知してデプロイする GitOps ネイティブなフローになっている。
+
+App ID はリポジトリ Variable（`vars.APP_ID`）、private key はリポジトリ Secret（`APP_PRIVATE_KEY`）として管理する。
+
+**トラブル：`yarn tsc` エラー**
+
+CI 初回実行時に TypeScript エラーが発生した。
+
+```
+packages/app/src/components/catalog/GrafanaDashboardCard.tsx:1:1 - error TS6133:
+'React' is declared but its value is never read.
+```
+
+React 17+ の JSX 自動インポートにより不要になった `import React from 'react'` が 2 ファイルに残っていた。ローカルでは `yarn tsc` を単独実行する機会がなく見落とされていた。該当 import を削除して解消した。
+
+---
+
 ## 変更ファイル一覧
 
 | ファイル | 変更内容 |
@@ -304,3 +415,8 @@ make generate-dr-manifests
 | `platform-charts/charts/common-db/values.yaml` | `storageClassName` パラメータ追加 |
 | `apps-gitops/apps/sample-backend/application.yaml` | CNPG ignoreDifferences 追加 |
 | `apps-gitops/apps/sample-backend/values.yaml` | `storageClassName: local-path-retain` 追加 |
+| `platform-gitops/platform/backstage/app-config/ghcr-pull-secret.yaml` | 新規作成：GithubAccessToken ジェネレーター + ghcr-pull-secret ExternalSecret |
+| `platform-gitops/platform/backstage/values.yaml` | `backstage.image.pullSecrets: [ghcr-pull-secret]` 追加 |
+| `backstage/.github/workflows/build-push.yml` | 新規作成：GitHub Actions build & push ワークフロー |
+| `backstage/packages/app/src/components/catalog/GrafanaDashboardCard.tsx` | 未使用 `import React` 削除 |
+| `backstage/packages/app/src/components/home/GrafanaDashboardWidget.tsx` | 未使用 `import React` 削除 |
