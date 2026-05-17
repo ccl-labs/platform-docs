@@ -75,9 +75,9 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 10 | kyverno | 依存なし |
 | 11 | cnpg | 依存なし（webhook は Wave 10 完了後に有効化） |
 | 11 | platform-secrets-sources | external-secrets（ESO CRD + ClusterSecretStore） |
-| 12 | external-secrets-config | platform-secrets-sources（source secrets 展開済み） |
+| 12 | external-secrets-config | platform-secrets-sources（ClusterSecretStore）— config/generators/namespaces の multi-source で全 ExternalSecret を一括管理 |
 | 12 | kyverno-policies | kyverno webhook |
-| 13 | keycloak-db | cnpg webhook + platform-secrets-sources（DB パスワード Secret） |
+| 13 | keycloak-db | cnpg webhook + external-secrets-config（wave 12 で DB Secret 生成済み） |
 | 14 | keycloak | keycloak-db（DB 接続先） |
 | 15 | keycloak-config-cli | keycloak（設定投入先） |
 | 15 | keycloak-routes | keycloak（HTTPRoute のバックエンド） |
@@ -99,7 +99,7 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 20 | user-apps | 依存なし（apps-gitops 別リポジトリ） |
 | 20 | user-apps-project | 依存なし |
 | 20 | vpa | 依存なし |
-| 21 | backstage-db | cnpg webhook（Wave 11 完了で保証済み） |
+| 21 | backstage-db | cnpg webhook + external-secrets-config（wave 12 で DB Secret 生成済み） |
 | 21 | crossplane-config | crossplane |
 | 21 | grafana-dashboards | kube-prometheus-stack（ConfigMap 自動検出） |
 | 21 | platform-alerts | kube-prometheus-stack（PrometheusRule） |
@@ -130,7 +130,8 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 2 | `install-cilium` | Cilium インストール（ArgoCD 起動前に CNI が必要） |
 | 3 | `fix-coredns` | CoreDNS 設定（後述） |
 | 4 | `bootstrap-argocd` | cert-manager/argocd namespace 作成・CA 投入・ArgoCD インストール・認証情報投入 |
-| 5 | `bootstrap-sync` | ルート App apply → 完全起動まで待機 |
+| 5 | `bootstrap-sync` | ルート App apply → Keycloak 起動まで待機 |
+| 6 | `bootstrap-apps` | apps-root App apply（ESO・CNPG が wave 12–13 で稼働済みのため安全に実行可能） |
 
 `bootstrap-sync` の詳細：
 
@@ -140,7 +141,9 @@ platform/applications/   # 全 Application を直下にフラット配置
 3. Envoy Gateway Pod が Ready になるまで待機
    （argocd.platform.local アクセスに必要）
 4. ArgoCD ログインを argocd.platform.local 経由に切り替え
-5. argocd app wait root（全 wave 完了まで）
+5. [マイルストーン①] ArgoCD 起動完了を表示（URL・admin パスワード）
+6. keycloak App が Healthy になるまで待機（timeout 900s）
+7. [マイルストーン②] bootstrap 完了を表示（ArgoCD URL・Keycloak URL）
 ```
 
 ### 5.1 CoreDNS 設定
