@@ -75,12 +75,12 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 10 | kyverno | 依存なし |
 | 11 | cnpg | 依存なし（webhook は Wave 10 完了後に有効化） |
 | 11 | platform-secrets-sources | external-secrets（ESO CRD + ClusterSecretStore） |
-| 12 | external-secrets-config | platform-secrets-sources（ClusterSecretStore）— config/generators/namespaces の multi-source で全 ExternalSecret を一括管理 |
-| 12 | kyverno-policies | kyverno webhook |
-| 13 | keycloak-db | cnpg webhook + external-secrets-config（wave 12 で DB Secret 生成済み） |
-| 14 | keycloak | keycloak-db（DB 接続先） |
-| 15 | keycloak-config-cli | keycloak（設定投入先） |
-| 15 | keycloak-routes | keycloak（HTTPRoute のバックエンド） |
+| 12 | kyverno-policies | kyverno webhook — ESO webhook endpoint 登録待ちのバッファ |
+| 13 | external-secrets-config | platform-secrets-sources（ClusterSecretStore）— config/generators/namespaces の multi-source で全 ExternalSecret を一括管理 |
+| 14 | keycloak-db | cnpg webhook + external-secrets-config（wave 13 で DB Secret 生成済み） |
+| 15 | keycloak | keycloak-db（DB 接続先） |
+| 16 | keycloak-config-cli | keycloak（設定投入先） |
+| 16 | keycloak-routes | keycloak（HTTPRoute のバックエンド） |
 
 ### 3.3 Wave 20–23（その他プラットフォームコンポーネント）
 
