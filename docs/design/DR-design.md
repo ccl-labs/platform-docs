@@ -105,7 +105,7 @@ spec:
 DR クラスター（`recovery`）でリストア完了後、DR クラスターを削除して GitOps に戻す際、PVC を残しておくことでデータを保全する。ArgoCD が `initdb` マニフェストでクラスターを再作成した際、CNPG は PVC 上の既存データを検知し bootstrap をスキップする。
 
 **実装済み**:
-- `local-path-retain` StorageClass（`reclaimPolicy: Retain`）を GitOps で管理（root-1-gateway wave 0 で適用）
+- `local-path-retain` StorageClass（`reclaimPolicy: Retain`）を GitOps で管理（wave 0 で適用）
 - 全 CNPG クラスターの `storage.storageClass: local-path-retain` を設定済み（新規 PVC から自動適用）
 - 既存 PV は `kubectl patch` で Retain に変更済み
 

@@ -37,7 +37,7 @@ git push origin main
 ArgoCD が自動 sync する。即時反映したい場合:
 
 ```bash
-argocd app sync root-2-auth
+argocd app sync platform-secrets-sources
 ```
 
 ESO による Secret 再生成を確認:
@@ -92,7 +92,7 @@ git add platform/secrets/sources/<新ファイル>.yaml platform/secrets/sources
 git commit -m "secret: <新シークレット名> 追加"
 git push origin main
 
-argocd app sync root-2-auth
+argocd app sync platform-secrets-sources
 kubectl get secret <シークレット名> -n platform-secrets
 ```
 

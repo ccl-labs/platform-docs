@@ -30,7 +30,7 @@ spec:
     path: platform/applications
     directory:
       recurse: true
-      exclude: 'root-3-others/vcluster-dev.yaml'
+      exclude: 'vcluster-dev.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -45,13 +45,8 @@ spec:
 ### 2.2 ディレクトリ構造
 
 ```
-platform/applications/
-  root-1-gateway/      # Wave 0-4: ネットワーク基盤
-  root-2-auth/         # Wave 10-15: 認証・シークレット基盤
-  root-3-others/       # Wave 20-22: その他プラットフォームコンポーネント
+platform/applications/   # 全 Application を直下にフラット配置
 ```
-
-サブディレクトリの名称は wave グループの識別用として維持する。
 
 ---
 
@@ -59,7 +54,7 @@ platform/applications/
 
 グループ間の wave 番号は 10 刻みで分離し、グループをまたぐ依存関係が wave 制御で確実に解消されるようにしている。
 
-### 3.1 root-1-gateway（Wave 0–4）
+### 3.1 Wave 0–4（ネットワーク基盤）
 
 | Wave | Application | 依存根拠 |
 |---|---|---|
@@ -71,7 +66,7 @@ platform/applications/
 | 3 | cert-manager-config | cert-manager webhook（CA Issuer・Certificate） |
 | 4 | gateway-config | envoy-gateway（Gateway/EnvoyProxy）+ cert-manager-config（TLS 証明書） |
 
-### 3.2 root-2-auth（Wave 10–15）
+### 3.2 Wave 10–15（認証・シークレット基盤）
 
 | Wave | Application | 依存根拠 |
 |---|---|---|
@@ -87,7 +82,7 @@ platform/applications/
 | 15 | keycloak-config-cli | keycloak（設定投入先） |
 | 15 | keycloak-routes | keycloak（HTTPRoute のバックエンド） |
 
-### 3.3 root-3-others（Wave 20–22）
+### 3.3 Wave 20–22（その他プラットフォームコンポーネント）
 
 | Wave | Application | 依存根拠 |
 |---|---|---|
