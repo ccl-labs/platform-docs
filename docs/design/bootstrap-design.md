@@ -82,7 +82,7 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 15 | keycloak-config-cli | keycloak（設定投入先） |
 | 15 | keycloak-routes | keycloak（HTTPRoute のバックエンド） |
 
-### 3.3 Wave 20–22（その他プラットフォームコンポーネント）
+### 3.3 Wave 20–23（その他プラットフォームコンポーネント）
 
 | Wave | Application | 依存根拠 |
 |---|---|---|
@@ -95,7 +95,6 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 20 | keda | 依存なし |
 | 20 | loki | 依存なし |
 | 20 | tempo | 依存なし |
-| 22 | trivy-operator | 依存なし（スキャン開始を他コンポーネント起動後に後回し） |
 | 20 | user-apps | 依存なし（apps-gitops 別リポジトリ） |
 | 20 | user-apps-project | 依存なし |
 | 20 | vpa | 依存なし |
@@ -105,6 +104,7 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 21 | platform-alerts | kube-prometheus-stack（PrometheusRule） |
 | 21 | user-apps-infra | user-apps-project |
 | 22 | backstage | backstage-db（DB 接続先） |
+| 23 | trivy-operator | 依存なし（スキャン開始を他コンポーネント起動後に後回し） |
 
 ---
 
