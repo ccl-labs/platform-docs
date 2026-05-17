@@ -219,6 +219,99 @@ secrets/
 
 ---
 
+## 8. kind 混在 YAML のチェックと分離
+
+全リポジトリ（platform-gitops・platform-infra・apps-gitops・platform-charts）を対象に「1ファイル1リソース種別」方針に違反する YAML を検索し、対象3ファイルを分離した。
+
+| ファイル | 混在 kind | 対処 |
+|---|---|---|
+| `crossplane/config/provider.yaml` | `DeploymentRuntimeConfig` + `Provider` | `provider-helm-runtime.yaml` に分離 |
+| `cert-manager/config/cluster-issuer.yaml` | `ClusterIssuer` + `Certificate` | `certificate.yaml` に分離 |
+| `crossplane/config/rbac.yaml` | `ServiceAccount` + `ClusterRoleBinding` | `service-account.yaml` + `cluster-role-binding.yaml` に分割・旧ファイル削除 |
+
+`catalog-info.yaml`・`backstage/org.yaml`（Backstage Entity）および `gateway/envoy-gateway/manifests.yaml`（vendor manifest）は対象外と判断。
+
+---
+
+## 9. apps-root.yaml の整理
+
+`platform-gitops/bootstrap/apps-root.yaml` の問題を発見・修正した。
+
+- **repoURL バグ**：`platform-gitops.git` の `apps/` を参照していたが、該当ディレクトリは存在しない。正しくは `apps-gitops.git`
+- **配置場所**：`bootstrap-apps` ターゲットから apply するため `platform-infra/k3d/` に移動
+- `platform-gitops/bootstrap/` ディレクトリは削除（`.gitkeep` のみだったため）
+
+---
+
+## 10. bootstrap-apps の統合と user-apps 整理
+
+### bootstrap-apps を make bootstrap に統合
+
+`bootstrap-sync` が Keycloak 起動まで待機するようになったため、`bootstrap-apps` を `bootstrap` target に追加。ESO・CNPG が確実に稼働済みの状態でアプリ層を展開できる。
+
+`user-apps-infra`（`sample-app` Namespace + `sample-apps` AppProject）の稼働確認後に `apps-root` を apply するよう `bootstrap-apps` に `argocd app wait user-apps-infra` を追加。
+
+### user-apps / apps-root の一本化
+
+`user-apps.yaml`（wave 20）が `apps-gitops/apps/*/application.yaml` を管理しており、`apps-root.yaml` と役割が重複していた。また wave 20 でアプリが展開されるため「platform 安定後にアプリを展開する」方針が実現できていなかった。
+
+- `platform/applications/user-apps.yaml` / `user-apps-project.yaml` を削除（`user-apps` AppProject はどのアプリも参照していないことを確認済み）
+- `apps-root.yaml` を `recurse: true` + `include: '*/application.yaml'` に修正（`user-apps` と同等の動作）
+- `user-apps-infra.yaml` は platform 側リソース（Namespace ラベル・AppProject）のため platform-gitops に残存
+
+Makefile のターゲット定義順も実行順（bootstrap-argocd → bootstrap-sync → bootstrap-apps）に整列。
+
+---
+
+## 11. Trivy 修正
+
+### Helm values キー名バグ修正
+
+`excludeNamespaces` と `concurrentScanJobsLimit` のキー名が誤っており、設定が一切反映されていなかった。
+
+| 修正前 | 修正後 |
+|---|---|
+| `operator.excludeNamespaces` | `excludeNamespaces`（トップレベル） |
+| `operator.concurrentScanJobsLimit: 1` | `operator.scanJobsConcurrentLimit: 1` |
+| `operator.concurrentNodeScanners: 1` | 削除（存在しないキー） |
+
+### wave 20 → 23 に変更
+
+他コンポーネント起動後にスキャンが始まるよう wave を後退させた。
+
+---
+
+## 12. ESO webhook 競合対策
+
+### 問題
+
+`external-secrets-config`（wave 12）の retry policy が `duration: 30s, factor: 2` の指数バックオフであり、ESO webhook の endpoint 登録が間に合わない場合に最大数分待機が発生していた。
+
+### 対処
+
+wave を1つずらして `kyverno-policies`（wave 12）を自然なバッファとして活用し、retry を線形短縮した。
+
+| App | 変更前 | 変更後 |
+|---|---|---|
+| `external-secrets-config` | wave 12、30s/factor:2/max:10m/limit:20 | wave 13、10s/factor:1/max:10s/limit:60 |
+| `keycloak-db` | wave 13 | wave 14 |
+| `keycloak` | wave 14 | wave 15 |
+| `keycloak-config-cli` / `keycloak-routes` | wave 15 | wave 16 |
+
+retry limit を 20（200秒）から 60（600秒）に増加。初回 bootstrap テストで limit 20 到達による sync error が発生したため修正。
+
+---
+
+## 13. bootstrap テスト結果
+
+2回のbootstrap実行で以下を確認・修正した。
+
+- `external-secrets-config` sync error → retry limit 不足（200秒）が原因。limit を 60（600秒）に修正
+- `backstage` Pod が起動時に `backstage-db-rw` を DNS 解決できず 503 → 手動 restart で解消。根本対応（Dockerfile に `pg_isready` wait を追加）は次セッションへ持ち越し
+- `argocd` App の OutOfSync（ServiceMonitor 未作成）は automated sync で自己解決
+
+---
+
 ## 変更ファイル一覧
 
 | ファイル | 変更内容 |
