@@ -95,7 +95,7 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 20 | keda | 依存なし |
 | 20 | loki | 依存なし |
 | 20 | tempo | 依存なし |
-| 20 | trivy-operator | 依存なし |
+| 22 | trivy-operator | 依存なし（スキャン開始を他コンポーネント起動後に後回し） |
 | 20 | user-apps | 依存なし（apps-gitops 別リポジトリ） |
 | 20 | user-apps-project | 依存なし |
 | 20 | vpa | 依存なし |
