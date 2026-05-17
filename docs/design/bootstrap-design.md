@@ -95,14 +95,12 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 20 | keda | 依存なし |
 | 20 | loki | 依存なし |
 | 20 | tempo | 依存なし |
-| 20 | user-apps | 依存なし（apps-gitops 別リポジトリ） |
-| 20 | user-apps-project | 依存なし |
 | 20 | vpa | 依存なし |
 | 21 | backstage-db | cnpg webhook + external-secrets-config（wave 12 で DB Secret 生成済み） |
 | 21 | crossplane-config | crossplane |
 | 21 | grafana-dashboards | kube-prometheus-stack（ConfigMap 自動検出） |
 | 21 | platform-alerts | kube-prometheus-stack（PrometheusRule） |
-| 21 | user-apps-infra | user-apps-project |
+| 21 | user-apps-infra | 依存なし（sample-app Namespace + sample-apps AppProject） |
 | 22 | backstage | backstage-db（DB 接続先） |
 | 23 | trivy-operator | 依存なし（スキャン開始を他コンポーネント起動後に後回し） |
 
@@ -131,7 +129,7 @@ platform/applications/   # 全 Application を直下にフラット配置
 | 3 | `fix-coredns` | CoreDNS 設定（後述） |
 | 4 | `bootstrap-argocd` | cert-manager/argocd namespace 作成・CA 投入・ArgoCD インストール・認証情報投入 |
 | 5 | `bootstrap-sync` | ルート App apply → Keycloak 起動まで待機 |
-| 6 | `bootstrap-apps` | apps-root App apply（ESO・CNPG が wave 12–13 で稼働済みのため安全に実行可能） |
+| 6 | `bootstrap-apps` | user-apps-infra（Namespace・AppProject）の稼働確認後に apps-root App apply |
 
 `bootstrap-sync` の詳細：
 
